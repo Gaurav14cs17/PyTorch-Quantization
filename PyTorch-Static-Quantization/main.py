@@ -1,3 +1,9 @@
+#####**********************************************************************####
+#### Youtube : https://www.youtube.com/watch?v=c3MT2qV5f9w
+### Link : https://leimao.github.io/blog/PyTorch-Static-Quantization/
+############################################################################
+
+
 import os
 import random
 import torch
@@ -8,6 +14,7 @@ from torchvision import datasets, transforms
 import time
 import copy
 import numpy as np
+from resnet import resnet18
 
 
 def set_random_seeds(random_seed=0):
@@ -169,16 +176,16 @@ def load_torchscript_model(model_filepath, device):
 def create_model(num_classes=10):
     # The number of channels in ResNet18 is divisible by 8.
     # This is required for fast GEMM integer matrix multiplication.
-    model = torchvision.models.resnet18(pretrained=False)
-    # model = resnet18(num_classes=num_classes, pretrained=False)
+    #model = torchvision.models.resnet18(pretrained=False)
+    model = resnet18(num_classes=num_classes, pretrained=False)
 
     # We would use the pretrained ResNet18 as a feature extractor.
-    for param in model.parameters():
-        param.requires_grad = False
-
-    # Modify the last FC layer
-    num_features = model.fc.in_features
-    model.fc = nn.Linear(num_features, 10)
+    # for param in model.parameters():
+    #     param.requires_grad = False
+    #
+    # # Modify the last FC layer
+    # num_features = model.fc.in_features
+    # model.fc = nn.Linear(num_features, 10)
     return model
 
 
@@ -234,7 +241,7 @@ def main():
 
     # Create an untrained model.
     model = create_model(num_classes=num_classes)
-    train_loader, test_loader = prepare_dataloader(num_workers=1, train_batch_size=32, eval_batch_size=16)
+    train_loader, test_loader = prepare_dataloader(num_workers=16, train_batch_size=128, eval_batch_size=256)
     print("Training Model...")
     model = train_model(model=model, train_loader=train_loader, test_loader=test_loader, device=cuda_device,
                         learning_rate=1e-1, num_epochs=200)
