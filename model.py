@@ -242,9 +242,11 @@ def main():
     save_model(model=model, model_dir=model_dir, model_filename=model_filename)
 
 
-
-
-
+## *************************************************************************************************************************************##
+#                                                                                                                                        #
+#                                             Start-Quantization-Aware-Training                                                          #
+#                                                                                                                                        #
+##**************************************************************************************************************************************##
 
 
     ############################################################################
@@ -306,7 +308,85 @@ def main():
     # https://pytorch.org/docs/stable/quantization-support.html
     #################################################################################################
 
+    quantization_config = torch.quantization.get_default_qconfig("fbgemm")
 
+
+    #########################################################################################################################################
+    # Custom quantization configurations                                                                                                    #
+    # quantization_config = torch.quantization.default_qconfig                                                                              #
+    # quantization_config = torch.quantization.QConfig(activation=torch.quantization.MinMaxObserver.with_args(dtype=torch.quint8),          #
+    #                            weight=torch.quantization.MinMaxObserver.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_symmetric)) #
+    #########################################################################################################################################
+
+    quantized_model.qconfig = quantization_config
+    # Print quantization configurations
+    print(quantized_model.qconfig)
+
+    # https://pytorch.org/docs/stable/_modules/torch/quantization/quantize.html#prepare_qat
+    torch.quantization.prepare_qat(quantized_model, inplace=True)
+
+
+    # # Use training data for calibration.
+    print("Training QAT Model...")
+    quantized_model.train()
+    train_model(model=quantized_model, train_loader=train_loader, test_loader=test_loader, device=cuda_device,learning_rate=1e-3, num_epochs=10)
+
+    quantized_model.to(cpu_device)
+
+
+    #####################################################################################################################################################################################
+    #      Using high-level static quantization wrapper                                                                                                                                 #
+    #      The above steps, including torch.quantization.prepare, calibrate_model, and torch.quantization.convert, are also equivalent to                                               #
+    #       quantized_model = torch.quantization.quantize_qat(model=quantized_model, run_fn=train_model, run_args=[train_loader, test_loader, cuda_device], mapping=None, inplace=Fals  #
+    ######################################################################################################################################################################################
+
+    # ⑪ quantized integer model
+    quantized_model = torch.quantization.convert(quantized_model, inplace=True)
+    quantized_model.eval()
+    # Print quantized model.
+    print(quantized_model)
+    # Save quantized model.
+    save_torchscript_model(model=quantized_model, model_dir=model_dir, model_filename=quantized_model_filename)
+
+    ## *************************************************************************************************************************************##
+    #                                                                                                                                        #
+    #                                             End-Quantization-Aware-Training                                                            #
+    #                                                                                                                                        #
+    ##**************************************************************************************************************************************##
+
+
+
+    ##*****************************##
+    ##   Inference                 ##
+    ##*****************************##
+
+    # Load quantized model.
+    quantized_jit_model = load_torchscript_model(model_filepath=quantized_model_filepath, device=cpu_device)
+
+    _, fp32_eval_accuracy = evaluate_model(model=model, test_loader=test_loader, device=cpu_device, criterion=None)
+    _, int8_eval_accuracy = evaluate_model(model=quantized_jit_model, test_loader=test_loader, device=cpu_device,criterion=None)
+
+
+    # Skip this assertion since the values might deviate a lot.
+    # assert model_equivalence(model_1=model, model_2=quantized_jit_model, device=cpu_device, rtol=1e-01, atol=1e-02, num_tests=100, input_size=(1,3,32,32)),
+    # "Quantized model deviates from the original model too much!"
+
+    print("FP32 evaluation accuracy: {:.3f}".format(fp32_eval_accuracy))
+    print("INT8 evaluation accuracy: {:.3f}".format(int8_eval_accuracy))
+
+    fp32_cpu_inference_latency = measure_inference_latency(model=model, device=cpu_device, input_size=(1, 3, 32, 32),num_samples=100)
+    int8_cpu_inference_latency = measure_inference_latency(model=quantized_model, device=cpu_device,input_size=(1, 3, 32, 32), num_samples=100)
+    int8_jit_cpu_inference_latency = measure_inference_latency(model=quantized_jit_model, device=cpu_device,input_size=(1, 3, 32, 32), num_samples=100)
+    fp32_gpu_inference_latency = measure_inference_latency(model=model, device=cuda_device, input_size=(1, 3, 32, 32),num_samples=100)
+
+    print("FP32 CPU Inference Latency: {:.2f} ms / sample".format(fp32_cpu_inference_latency * 1000))
+    print("FP32 CUDA Inference Latency: {:.2f} ms / sample".format(fp32_gpu_inference_latency * 1000))
+    print("INT8 CPU Inference Latency: {:.2f} ms / sample".format(int8_cpu_inference_latency * 1000))
+    print("INT8 JIT CPU Inference Latency: {:.2f} ms / sample".format(int8_jit_cpu_inference_latency * 1000))
+
+
+if __name__ == "__main__":
+    main()
 
 
 
