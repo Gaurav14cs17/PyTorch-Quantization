@@ -17,12 +17,12 @@
 
 - Text: 
 - According to PolitiFact the top 400 richest Americans "have more wealth than half of all Americans combined." According to the New York Times on July 22, 2014, the "richest 1 percent in the United States now own more wealth than the bottom 90 percent". Inherited wealth may help explain why many Americans who have become rich may have had a "substantial head start". In September 2012, according to the Institute for Policy Studies, "over 60 percent" of the Forbes richest 400 Americans "grew up in substantial privilege".
-- Question: 
-- What publication printed that the wealthiest 1% have more money than those in the bottom 90%?
-- Model Answer: 
-- New York Times
-- Dynamic Quantized Model Answer: 
-- New York Times
+-> Question: 
+-> What publication printed that the wealthiest 1% have more money than those in the bottom 90%?
+-? Model Answer: 
+-> New York Times
+-> Dynamic Quantized Model Answer: 
+-> New York Times
  
   ===========================================================================
 - BERT QA Inference Latencies
